@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, User, BookOpen } from "lucide-react";
 import AnimatedCard from "./ui/AnimatedCard";
+import { generateTutorResponse } from "@/utils/geminiAPI";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   id: string;
@@ -12,13 +14,6 @@ interface Message {
   sender: "user" | "assistant";
   timestamp: Date;
 }
-
-const exampleResponses = [
-  "The quadratic formula is used to solve quadratic equations of the form ax² + bx + c = 0. The formula is x = (-b ± √(b² - 4ac)) / 2a. Let me walk you through how to apply this to your problem...",
-  "To understand photosynthesis, we need to look at how plants convert light energy into chemical energy. The process happens in the chloroplasts and involves several complex steps...",
-  "When analyzing Shakespeare's use of iambic pentameter in Hamlet, pay attention to when he breaks from this pattern. These deviations often highlight moments of emotional intensity or character development...",
-  "The law of conservation of energy states that energy cannot be created or destroyed, only transformed from one form to another. Let's see how this applies to your physics problem...",
-];
 
 const TutorChat = () => {
   const [messages, setMessages] = useState<Message[]>([
@@ -34,6 +29,7 @@ const TutorChat = () => {
   const [isTyping, setIsTyping] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,7 +39,7 @@ const TutorChat = () => {
     scrollToBottom();
   }, [messages]);
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!inputValue.trim()) return;
@@ -59,20 +55,28 @@ const TutorChat = () => {
     setInputValue("");
     setIsTyping(true);
     
-    // Simulate AI response
-    setTimeout(() => {
-      const randomResponse = exampleResponses[Math.floor(Math.random() * exampleResponses.length)];
+    try {
+      // Call Gemini API
+      const response = await generateTutorResponse(inputValue);
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: randomResponse,
+        content: response,
         sender: "assistant",
         timestamp: new Date(),
       };
       
       setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error("Failed to get response from Gemini:", error);
+      toast({
+        title: "Error",
+        description: "Failed to get a response. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
   
   return (
@@ -133,7 +137,12 @@ const TutorChat = () => {
           onChange={(e) => setInputValue(e.target.value)}
           className="flex-grow focus-visible:ring-1 focus-visible:ring-primary"
         />
-        <Button type="submit" size="icon" className="bg-primary hover:bg-primary/90">
+        <Button 
+          type="submit" 
+          size="icon" 
+          className="bg-primary hover:bg-primary/90"
+          disabled={isTyping}
+        >
           <Send className="w-4 h-4" />
         </Button>
       </form>

@@ -5,6 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Book, CheckSquare, Zap, RefreshCw } from "lucide-react";
 import AnimatedCard from "./ui/AnimatedCard";
+import { cn } from "@/lib/utils";
+import { generateQuizQuestions } from "@/utils/geminiAPI";
+import { useToast } from "@/hooks/use-toast";
 
 interface QuizQuestion {
   id: number;
@@ -26,48 +29,6 @@ const subjects = [
 
 const difficultyLevels = ["Easy", "Medium", "Hard"];
 
-const sampleQuizzes: Record<string, QuizQuestion[]> = {
-  Mathematics: [
-    {
-      id: 1,
-      question: "What is the value of x in the equation 2x + 5 = 13?",
-      options: ["3", "4", "5", "6"],
-      correctAnswer: 1,
-    },
-    {
-      id: 2,
-      question: "What is the sum of angles in a triangle?",
-      options: ["90°", "180°", "270°", "360°"],
-      correctAnswer: 1,
-    },
-    {
-      id: 3,
-      question: "Which of these is a prime number?",
-      options: ["1", "15", "23", "49"],
-      correctAnswer: 2,
-    },
-  ],
-  Physics: [
-    {
-      id: 1,
-      question: "What is Newton's first law of motion?",
-      options: [
-        "F = ma",
-        "Energy cannot be created or destroyed",
-        "An object at rest stays at rest unless acted upon by a force",
-        "For every action, there is an equal and opposite reaction",
-      ],
-      correctAnswer: 2,
-    },
-    {
-      id: 2,
-      question: "What is the unit of electric current?",
-      options: ["Volt", "Ampere", "Watt", "Ohm"],
-      correctAnswer: 1,
-    },
-  ],
-};
-
 const QuizGenerator = () => {
   const [subject, setSubject] = useState<string>("");
   const [topic, setTopic] = useState<string>("");
@@ -77,18 +38,37 @@ const QuizGenerator = () => {
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [score, setScore] = useState(0);
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
   
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setLoading(true);
     
-    // Simulate API call delay
-    setTimeout(() => {
-      const generatedQuestions = sampleQuizzes[subject] || [];
+    try {
+      // Call Gemini API to generate quiz questions
+      const generatedQuestions = await generateQuizQuestions(subject, topic, difficulty);
+      
+      if (generatedQuestions.length === 0) {
+        toast({
+          title: "Error",
+          description: "Failed to generate quiz questions. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       setQuestions(generatedQuestions);
       setQuizStarted(true);
       setQuizCompleted(false);
+    } catch (error) {
+      console.error("Error generating quiz:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate quiz. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
   
   const handleAnswerSelect = (questionId: number, answerIndex: number) => {
